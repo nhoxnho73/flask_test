@@ -4,9 +4,9 @@ from flask_login import login_required, current_user
 
 # import blueprint admin
 from . import admin
-from .forms import DepartmentForm
+from .forms import DepartmentForm, RoleForm, EmployeeAssignForm
 from .. import db
-from ..models import Department
+from ..models import Department, Role, Employee
 
 
 def check_admin():
@@ -51,7 +51,7 @@ def add_department():
             # in case department name already exists
             flash('Error: department name already exists.')
 
-        redirect(url_for('admin.list_departments'))
+        return redirect(url_for('admin.list_departments'))
 
     return render_template('admin/departments/department.html', action="Add", add_department=add_department,
                            form=form, title="Add Department")
@@ -101,3 +101,119 @@ def delete_department(id):
     return redirect(url_for('admin.list_departments'))
     return render_template(title="Delete Department")
 
+
+@admin.route('/roles', methods=['GET', 'POST'])
+@login_required
+def list_roles():
+    check_admin()
+    roles = Role.query.all()
+    return render_template('/admin/roles/roles.html', roles=roles, title="Roles")
+
+
+@admin.route('/roles/add', methods=['GET', 'POST'])
+@login_required
+def add_role():
+    """
+    add a the role to the database
+    """
+    check_admin()
+
+    add_role = True
+
+    form = RoleForm()
+    if form.validate_on_submit():
+        role = Role(name=form.name.data, description=form.description.data)
+
+        try:
+            # add role to the database
+            db.session.add(role)
+            db.session.commit()
+            flash('You have successfully added a new role')
+
+        except:
+
+            # in case role name already exists
+            flash('Error: role name already exists.')
+
+        return redirect(url_for('admin.list_roles'))
+
+    return render_template('admin/roles/role.html', action="Add", add_role=add_role,
+                           form=form, title="Add Role")
+
+
+@admin.route('/roles/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_role(id):
+    """
+    edit a role
+    """
+    check_admin()
+
+    add_role = False
+
+    role = Role.query.get_or_404(id)
+    form = RoleForm(obj=role)
+    if form.validate_on_submit():
+        role.name = form.name.data
+        role.description = form.description.data
+        db.session.commit()
+
+        flash('You have successfully edited the role.')
+
+        # redirect to the role page
+        return render_template(url_for('admin.list_roles'))
+
+    form.description.data = role.description
+    form.name.data = role.name
+    return render_template('admin/roles/role.html', action="Edit", add_role=add_role,
+                           form=form, role=role, title="Edit Role")
+
+
+@admin.route('/roles/delete/<int:id>', methods=['GET', 'POST'])
+@login_required
+def delete_role(id):
+    """
+    Delete a role from the database
+    """
+    check_admin()
+
+    role = Role.query.get_or_404(id)
+    db.session.delete(role)
+    db.session.commit()
+    flash('You have successfully deleted the role.')
+
+    return redirect(url_for('admin.list_roles'))
+    return render_template(title="Delete Role")
+
+@admin.route('/employees')
+@login_required
+def list_employees():
+    """List all employees"""
+
+    check_admin()
+
+    employees = Employee.query.all()
+    return render_template('admin/employees/employees.html', employees=employees, title="Employees")
+
+@admin.route('/employees/assign/<int:id>', methods=['GET', 'POST'])
+@login_required
+def assign_employee(id):
+    """Assign a department and a role to an employee"""
+
+    check_admin()
+
+    employee = Employee.query.get_or_404(id)
+
+    if employee.is_admin:
+        abort(403)
+
+    form = EmployeeAssignForm(obj=employee)
+    if form.validate_on_submit():
+        employee.department = form.department.data
+        employee.role = form.role.data
+        db.session.add(employee)
+        db.session.commit()
+        flash("You have successfull assigned a department and role.")
+
+        return redirect(url_for('admin.list_employees'))
+    return render_template('admin/employees/employee.html', employee=employee, form=form, title="Assign Employee")
