@@ -185,6 +185,7 @@ def delete_role(id):
     return redirect(url_for('admin.list_roles'))
     return render_template(title="Delete Role")
 
+
 @admin.route('/employees')
 @login_required
 def list_employees():
@@ -194,6 +195,7 @@ def list_employees():
 
     employees = Employee.query.all()
     return render_template('admin/employees/employees.html', employees=employees, title="Employees")
+
 
 @admin.route('/employees/assign/<int:id>', methods=['GET', 'POST'])
 @login_required
